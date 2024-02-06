@@ -6,7 +6,7 @@ from langchain.schema import Document
 from langchain_openai import OpenAIEmbeddings
 
 from models import DocumentModel, DocumentResponse
-from store import ExecutorPgVector, FullyAsyncPgVector
+from store import AsnyPgVector
 from store_factory import get_vector_store
 
 load_dotenv(find_dotenv())
@@ -32,15 +32,14 @@ try:
     DB_HOST = get_env_variable("DB_HOST")
     DB_PORT = get_env_variable("DB_PORT")
 
-    SYNC_CONNECTION_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
-    ASYNC_CONNECTION_STRING = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
+    CONNECTION_STRING = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB_HOST}:{DB_PORT}/{POSTGRES_DB}"
 
     OPENAI_API_KEY = get_env_variable("OPENAI_API_KEY")
     embeddings = OpenAIEmbeddings()
 
     mode = "async" if USE_ASYNC else "sync"
     pgvector_store = get_vector_store(
-        SYNC_CONNECTION_STRING, ASYNC_CONNECTION_STRING, embeddings, mode
+        connection_string=CONNECTION_STRING, embeddings=embeddings, collection_name="testcollection", mode=mode
     )
     retriever = pgvector_store.as_retriever()
 except ValueError as e:
@@ -65,7 +64,7 @@ async def add_documents(documents: list[DocumentModel]):
         ]
         ids = (
             await pgvector_store.add_documents(docs)
-            if isinstance(pgvector_store, (ExecutorPgVector, FullyAsyncPgVector))
+            if isinstance(pgvector_store, AsnyPgVector)
             else pgvector_store.add_documents(docs)
         )
         return {"message": "Documents added successfully", "ids": ids}
@@ -76,9 +75,9 @@ async def add_documents(documents: list[DocumentModel]):
 @app.get("/get-all-ids/")
 async def get_all_ids():
     try:
-        if isinstance(pgvector_store, (ExecutorPgVector, FullyAsyncPgVector)):
+        if isinstance(pgvector_store, AsnyPgVector):
             ids = await pgvector_store.get_all_ids()
-        else:  # Sync operation for ExtendedPgVector
+        else:
             ids = pgvector_store.get_all_ids()
 
         return ids
@@ -94,10 +93,10 @@ async def quick_response():
 @app.post("/get-documents-by-ids/", response_model=list[DocumentResponse])
 async def get_documents_by_ids(ids: list[str]):
     try:
-        if isinstance(pgvector_store, (ExecutorPgVector, FullyAsyncPgVector)):
+        if isinstance(pgvector_store, AsnyPgVector):
             existing_ids = await pgvector_store.get_all_ids()
             documents = await pgvector_store.get_documents_by_ids(ids)
-        else:  # Sync operation for ExtendedPgVector
+        else:
             existing_ids = pgvector_store.get_all_ids()
             documents = pgvector_store.get_documents_by_ids(ids)
 
@@ -114,10 +113,10 @@ async def get_documents_by_ids(ids: list[str]):
 @app.delete("/delete-documents/")
 async def delete_documents(ids: list[str]):
     try:
-        if isinstance(pgvector_store, (ExecutorPgVector, FullyAsyncPgVector)):
+        if isinstance(pgvector_store, AsnyPgVector):
             existing_ids = await pgvector_store.get_all_ids()
             await pgvector_store.delete(ids=ids)
-        else:  # Sync operation for ExtendedPgVector
+        else:
             existing_ids = pgvector_store.get_all_ids()
             pgvector_store.delete(ids=ids)
 

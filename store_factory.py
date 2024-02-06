@@ -1,31 +1,22 @@
-from store import ExecutorPgVector, ExtendedPgVector, FullyAsyncPgVector
+from store import ExtendedPgVector, AsnyPgVector
+from langchain_community.embeddings import OpenAIEmbeddings
 
 
 def get_vector_store(
-    sync_connection_string: str,
-    async_connection_string: str,
-    embeddings,
+    connection_string: str,
+    embeddings: OpenAIEmbeddings,
+    collection_name: str,
     mode: str = "sync",
 ):
     if mode == "sync":
         return ExtendedPgVector(
-            connection_string=sync_connection_string, embedding_function=embeddings
-        )
-    elif mode == "executor":
-        return ExecutorPgVector(
-            connection_string=sync_connection_string, embedding_function=embeddings
+            connection_string=connection_string, embedding_function=embeddings, collection_name=collection_name
         )
     elif mode == "async":
-        return FullyAsyncPgVector(
-            connection_string=sync_connection_string,
-            async_connection_string=async_connection_string,
-            embedding_function=embeddings,
+        return AsnyPgVector(
+            connection_string=connection_string, embedding_function=embeddings, collection_name=collection_name
         )
     else:
         raise ValueError(
-            "Invalid mode specified. Choose 'sync', 'executor', or 'async'."
+            "Invalid mode specified. Choose 'sync' or 'async'."
         )
-
-
-# Example usage
-# pgvector_store = get_vector_store("postgresql+psycopg2://...", "postgresql+asyncpg://...", embeddings, mode="async")
