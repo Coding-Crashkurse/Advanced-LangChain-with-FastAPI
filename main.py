@@ -6,8 +6,12 @@ from langchain.schema import Document
 from langchain_openai import OpenAIEmbeddings
 
 from models import DocumentModel, DocumentResponse
+from langchain_core.prompts import ChatPromptTemplate
 from store import AsnyPgVector
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 from store_factory import get_vector_store
+from langchain_openai import ChatOpenAI
 
 load_dotenv(find_dotenv())
 
@@ -42,6 +46,21 @@ try:
         connection_string=CONNECTION_STRING, embeddings=embeddings, collection_name="testcollection", mode=mode
     )
     retriever = pgvector_store.as_retriever()
+    template = """Answer the question based only on the following context:
+    {context}
+
+    Question: {question}
+    """
+    prompt = ChatPromptTemplate.from_template(template)
+    model = ChatOpenAI(model_name="gpt-3.5-turbo")
+    chain = (
+            {"context": retriever, "question": RunnablePassthrough()}
+            | prompt
+            | model
+            | StrOutputParser()
+    )
+
+
 except ValueError as e:
     raise HTTPException(status_code=500, detail=str(e))
 except Exception as e:
@@ -63,7 +82,7 @@ async def add_documents(documents: list[DocumentModel]):
             for doc in documents
         ]
         ids = (
-            await pgvector_store.add_documents(docs)
+            await pgvector_store.aadd_documents(docs)
             if isinstance(pgvector_store, AsnyPgVector)
             else pgvector_store.add_documents(docs)
         )
@@ -83,11 +102,6 @@ async def get_all_ids():
         return ids
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/chat/")
-async def quick_response():
-    pass  # to be implemented
 
 
 @app.post("/get-documents-by-ids/", response_model=list[DocumentResponse])
@@ -126,3 +140,9 @@ async def delete_documents(ids: list[str]):
         return {"message": f"{len(ids)} documents deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat/")
+async def quick_response(msg: str):
+    result = chain.invoke(msg)
+    return result
+
