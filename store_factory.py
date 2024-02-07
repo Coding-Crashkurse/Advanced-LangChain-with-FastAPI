@@ -1,5 +1,6 @@
-from store import ExtendedPgVector, AsnyPgVector
 from langchain_community.embeddings import OpenAIEmbeddings
+
+from store import AsnyPgVector, ExtendedPgVector
 
 
 def get_vector_store(
@@ -10,13 +11,15 @@ def get_vector_store(
 ):
     if mode == "sync":
         return ExtendedPgVector(
-            connection_string=connection_string, embedding_function=embeddings, collection_name=collection_name
+            connection_string=connection_string,
+            embedding_function=embeddings,
+            collection_name=collection_name,
         )
     elif mode == "async":
         return AsnyPgVector(
-            connection_string=connection_string, embedding_function=embeddings, collection_name=collection_name
+            connection_string=connection_string,
+            embedding_function=embeddings,
+            collection_name=collection_name,
         )
     else:
-        raise ValueError(
-            "Invalid mode specified. Choose 'sync' or 'async'."
-        )
+        raise ValueError("Invalid mode specified. Choose 'sync' or 'async'.")

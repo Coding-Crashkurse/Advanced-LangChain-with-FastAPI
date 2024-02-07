@@ -48,5 +48,3 @@ class AsnyPgVector(ExtendedPgVector):
         **kwargs: Any
     ) -> None:
         await run_in_executor(None, super().delete, ids, collection_only, **kwargs)
-
-

@@ -3,15 +3,14 @@ import os
 from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI, HTTPException
 from langchain.schema import Document
-from langchain_openai import OpenAIEmbeddings
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 from models import DocumentModel, DocumentResponse
-from langchain_core.prompts import ChatPromptTemplate
 from store import AsnyPgVector
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
 from store_factory import get_vector_store
-from langchain_openai import ChatOpenAI
 
 load_dotenv(find_dotenv())
 
@@ -43,7 +42,10 @@ try:
 
     mode = "async" if USE_ASYNC else "sync"
     pgvector_store = get_vector_store(
-        connection_string=CONNECTION_STRING, embeddings=embeddings, collection_name="testcollection", mode=mode
+        connection_string=CONNECTION_STRING,
+        embeddings=embeddings,
+        collection_name="testcollection",
+        mode=mode,
     )
     retriever = pgvector_store.as_retriever()
     template = """Answer the question based only on the following context:
@@ -54,10 +56,10 @@ try:
     prompt = ChatPromptTemplate.from_template(template)
     model = ChatOpenAI(model_name="gpt-3.5-turbo")
     chain = (
-            {"context": retriever, "question": RunnablePassthrough()}
-            | prompt
-            | model
-            | StrOutputParser()
+        {"context": retriever, "question": RunnablePassthrough()}
+        | prompt
+        | model
+        | StrOutputParser()
     )
 
 
@@ -141,8 +143,8 @@ async def delete_documents(ids: list[str]):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/chat/")
 async def quick_response(msg: str):
     result = chain.invoke(msg)
     return result
-
